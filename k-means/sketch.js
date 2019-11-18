@@ -8,6 +8,18 @@ let canvasHeight = 500;
 
 let nodes = [];
 
+let classColorList = [
+	'#D3D3D3',
+	'#FF0000',
+	'#00FF00',
+	'#0000FF',
+	'#FFFF00',
+	'#00FFFF',
+	'#FF00FF',
+]
+
+let debounce = false;
+
 let controlPane = {
 	height: canvasHeight,
 	width: 200,
@@ -21,6 +33,7 @@ let controlPane = {
 	},
 	playButton: null,
 	resetButton: null,
+	randomButton: null,
 	inBounds: function(){
 		let mx = mouseX;
 		let my = mouseY;
@@ -80,8 +93,14 @@ function setup() {
     controlPane.playButton.mousePressed(function(){
     	buttonEvent('play');
     });
+
+    controlPane.playButton = createButton('Random');
+  	controlPane.playButton.position(10, 100);
+    controlPane.playButton.mousePressed(function(){
+    	buttonEvent('random');
+    });
 	// Setup content pane
-	contentPane.width = canvasWidth - controlPane.width;
+	contentPane.width = canvasWidth + controlPane.width;
 	contentPane.height = canvasHeight;
 	contentPane.x = controlPane.x + controlPane.width;
 	controlPane.y = 0;
@@ -93,6 +112,27 @@ function draw() {
 	background(180);
 	drawContentPane();
 	drawControlPane();
+	drawNodes();
+}
+
+function drawNodes() {
+	_.forEach(nodes, node => {
+		let c = classColorList[node.class]
+		fill(c);
+		circle(node.x, node.y, node.size);
+	})
+}
+
+function initRandomNodes() {
+	let num = 1000;
+	let counter = 0;
+	while(counter ++ < num) {
+		let x = random(contentPane.x, controlPane.x + contentPane.width);
+		let y = random(contentPane.y, controlPane.y + contentPane.height);
+		let nodeSize = 5;
+		let nodeColor = color(255,0,0);
+		nodes.push(createNode(x, y, nodeSize, nodeColor));
+	}
 }
 
 function createNode(x, y, size, c){
@@ -101,7 +141,7 @@ function createNode(x, y, size, c){
 		y: y,
 		size: size,
 		color: c,
-		class: -1
+		class: 0
 	}
 }
 
@@ -114,12 +154,39 @@ function mouseClicked() {
   // line(mouseX, 0, mouseX, 100);
 }
 
+function mouseDragged() {
+  if(contentPane.inBounds() && !debounce){
+  	debounce = true;
+  	contentPaneClicked()
+  }
+}
+
 function contentPaneClicked(){
     console.log("Pressed on contentpane");
+    // Add node
+    let nodeSize = 5;
+    let nodeColor = color(255,0,0);
+    nodes.push(createNode(mouseX, mouseY,nodeSize, nodeColor));
+
+    setTimeout(function(){
+    	debounce = false;
+    }, 50);
 }
 
 function buttonEvent(event) {
 	console.log("Button pressed ", event);
+	if(event == 'reset')
+		return resetButton();
+	if(event == 'random')
+		return randomButton();
+}
+
+function resetButton(){
+	nodes = [];
+}
+
+function randomButton() {
+	initRandomNodes();
 }
 
 function drawPane(pane) {
