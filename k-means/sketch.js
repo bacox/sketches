@@ -8,6 +8,13 @@ let canvasHeight = 500;
 
 let nodes = [];
 
+let meanCentres = [];
+
+let K = 5;
+
+let doDrawNodes = true;
+let doDrawCentres = true;
+
 let classColorList = [
 	'#D3D3D3',
 	'#FF0000',
@@ -34,6 +41,9 @@ let controlPane = {
 	playButton: null,
 	resetButton: null,
 	randomButton: null,
+	stepButton: null,
+	drawNodesCheckbox: null,
+	drawCentresCheckbox: null,
 	inBounds: function(){
 		let mx = mouseX;
 		let my = mouseY;
@@ -99,6 +109,20 @@ function setup() {
     controlPane.playButton.mousePressed(function(){
     	buttonEvent('random');
     });
+
+    controlPane.playButton = createButton('Step');
+  	controlPane.playButton.position(10, 130);
+    controlPane.playButton.mousePressed(function(){
+    	buttonEvent('step');
+    });
+
+    controlPane.drawNodesCheckbox = createCheckbox('Draw Nodes', true);
+  	controlPane.drawNodesCheckbox.position(10, 160);
+    controlPane.drawNodesCheckbox.changed(toggleDrawNodes);
+
+    controlPane.drawCentresCheckbox = createCheckbox('Draw Centroids', true);
+  	controlPane.drawCentresCheckbox.position(10, 190);
+    controlPane.drawCentresCheckbox.changed(toggleDrawCentres);
 	// Setup content pane
 	contentPane.width = canvasWidth + controlPane.width;
 	contentPane.height = canvasHeight;
@@ -112,19 +136,112 @@ function draw() {
 	background(180);
 	drawContentPane();
 	drawControlPane();
-	drawNodes();
+	if(doDrawNodes)
+		drawNodes();
+	if(doDrawCentres)
+		drawK();
 }
 
 function drawNodes() {
 	_.forEach(nodes, node => {
+		// console.log(node)
 		let c = classColorList[node.class]
 		fill(c);
-		circle(node.x, node.y, node.size);
+		square(node.x, node.y, node.size);
+		// circle(node.x, node.y, node.size);
 	})
 }
 
+function toggleDrawNodes(){
+	if(doDrawNodes)
+		doDrawNodes = false;
+	else
+		doDrawNodes = true;
+	console.log('Toggle draw nodes ', doDrawNodes);
+}
+
+function toggleDrawCentres(){
+	if(doDrawCentres)
+		doDrawCentres = false;
+	else
+		doDrawCentres = true;
+	console.log('Toggle draw centres ', doDrawCentres);
+}
+
+function initK(){
+	let counter = 0;
+	while(counter <= K) {
+		let x = random(contentPane.x, controlPane.x + contentPane.width);
+		let y = random(contentPane.y, controlPane.y + contentPane.height); 	
+		let _class = ++counter;
+		console.log('Creating new class: ', _class);
+		meanCentres.push(createKCentre(x,y, _class));
+	}
+
+	stepK();
+}
+
+function stepK(){
+	_.map(nodes, node =>{
+		let closestId = 0;
+		let minDistance = Number.MAX_SAFE_INTEGER;
+		_.forEach(meanCentres, centre => {
+			let d = distance(node.x, node.y, centre.x, centre.y);
+			if(d < minDistance) {
+				// console.log('New class: ', mea);
+				closestId = centre.class;
+				minDistance = d;
+			}
+		});
+		node.class = closestId;
+	})
+}
+function recalculateMeanCentres() {
+	_.forEach(meanCentres, recalculateMeanCentre);
+}
+function recalculateMeanCentre(centre) {
+	let id = centre.class;
+	let amount = 0;
+	let sumx = 0;
+	let sumy = 0;
+	_(nodes)
+		.filter({class: id})
+		.forEach(node => {
+			sumx += node.x;
+			sumy += node.y;
+			amount++;
+		})
+	centre.x = sumx / amount;
+	centre.y = sumy / amount;
+}
+
+function distance(x1, y1, x2, y2) {
+	var a = x1 - x2;
+	var b = y1 - y2;
+
+	return Math.sqrt( a*a + b*b );
+}
+
+function drawK(){
+	_.forEach(meanCentres, centre => {
+		let c = classColorList[centre.class];
+		fill(color(c));
+		circle(centre.x, centre.y, centre.size);
+	});
+}
+
+function createKCentre(x, y, c) {
+	let size = 15;
+	return {
+		x: x,
+		y: y,
+		class: c,
+		size: size
+	};
+}
+
 function initRandomNodes() {
-	let num = 1000;
+	let num = 10000;
 	let counter = 0;
 	while(counter ++ < num) {
 		let x = random(contentPane.x, controlPane.x + contentPane.width);
@@ -179,10 +296,28 @@ function buttonEvent(event) {
 		return resetButton();
 	if(event == 'random')
 		return randomButton();
+	if(event == 'play')
+		playButton();
+	if(event == 'step')
+		stepButton();
+}
+
+function stepButton(){
+	console.log('Stepping');
+	if(meanCentres.length == 0) {
+		initK();
+	}
+	recalculateMeanCentres();
+	stepK();
+}
+
+function playButton(){
+	initK();
 }
 
 function resetButton(){
 	nodes = [];
+	meanCentres = [];
 }
 
 function randomButton() {
